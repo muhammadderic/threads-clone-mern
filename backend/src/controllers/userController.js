@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import generateTokenAndSetCookie from "../helpers/generateTokenAndSetCookie.js";
 import { sendResponse } from "../utils/sendResponse.js";
+import { uploadImage } from "../utils/uploadImage.js";
 
 // Create a user (sign up) (POST /signup)
 const signupUser = async (req, res) => {
@@ -125,8 +126,76 @@ const logoutUser = (req, res) => {
   }
 };
 
+// Update user by ID (PUT /users/:id)
+const updateUser = async (req, res) => {
+  const { name, email, username, password, bio } = req.body;
+  const file = req.file;
+  const userId = req.user._id;
+
+  try {
+    let user = await User.findById(userId);
+    if (!user) return sendResponse(res, {
+      status: 400,
+      success: false,
+      message: "User not found",
+    });
+
+    if (req.params.id !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        message: "Forbidden: You are not allowed to update another user's profile",
+        error: "Access denied due to user mismatch",
+      });
+    }
+
+    // Handle password update
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    // Handle image upload
+    if (file) {
+      if (user.profilePic) {
+        const publicId = user.profilePic.split("/").pop().split(".")[0];
+        await cloudinary.uploader.destroy(publicId);
+      }
+      const uploadedUrl = await uploadImage(file.buffer);
+      user.profilePic = uploadedUrl;
+    }
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.username = username || user.username;
+    user.bio = bio || user.bio;
+
+    await user.save();
+
+    // password should be null in response
+    user.password = null;
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "User updated successfully",
+      data: user
+    });
+  } catch (err) {
+    console.log("Error in updateUser: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User updated failed",
+      error: err.message,
+    });
+  }
+};
+
+
 export {
   signupUser,
   loginUser,
   logoutUser,
+  updateUser,
 }
