@@ -1,5 +1,11 @@
 import app from "./app.js";
+import connectDB from "./config/db.js";
 
-app.listen(5000, () => {
-  console.log("Server running on port 5000");
+// Connect to MongoDB
+connectDB();
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
