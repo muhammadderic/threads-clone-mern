@@ -5,6 +5,76 @@ import { sendResponse } from "../utils/sendResponse.js";
 import { uploadImage } from "../utils/uploadImage.js";
 import { freezeToggleAccount } from "../helpers/userHelpers.js";
 
+// Get user profile (GET /users/:query)
+const getUserProfile = async (req, res) => {
+  const { query } = req.params;
+
+  try {
+    const user = await User.findOne({ username: query }).select("-password -updatedAt");
+
+    if (!user) return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "User not found",
+    });
+
+    return sendResponse(res, {
+      status: 201,
+      success: true,
+      message: "Get user successfully",
+      data: user,
+    });
+  } catch (err) {
+    console.log("Error in getUserProfile: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Get user profile failed",
+      error: err.message,
+    });
+  }
+};
+
+// Get all suggested users (GET /suggested)
+// (users who follow the current user but are not followed back)
+const getSuggestedUsers = async (req, res) => {
+  try {
+    // exclude the current user from suggested users array and exclude users that current user is already following
+    const userId = req.user._id;
+
+    const usersFollowedByYou = await User.findById(userId).select("following");
+
+    const users = await User.aggregate([
+      {
+        $match: {
+          _id: { $ne: userId },
+        },
+      },
+      {
+        $sample: { size: 10 },
+      },
+    ]);
+    const filteredUsers = users.filter((user) => !usersFollowedByYou.following.includes(user._id));
+    const suggestedUsers = filteredUsers.slice(0, 4);
+    suggestedUsers.forEach((user) => (user.password = null));
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "Get all suggested users successfully",
+      data: suggestedUsers
+    });
+  } catch (err) {
+    console.log("Error in getSuggestedUsers: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Get all suggested users failed",
+      error: err.message,
+    });
+  }
+};
+
 // Create a user (sign up) (POST /signup)
 const signupUser = async (req, res) => {
   try {
@@ -125,6 +195,60 @@ const logoutUser = (req, res) => {
       status: 500,
       success: false,
       message: "User logout failed",
+      error: err.message,
+    });
+  }
+};
+
+// Toggle: follow and unfollow other users (POST /follow/:id)
+const followUnFollowUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userToModify = await User.findById(id);
+    const currentUser = await User.findById(req.user._id);
+
+    if (id === req.user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        message: "Bad Request: You cannot follow or unfollow yourself",
+        error: "User attempted to follow/unfollow themselves",
+      });
+    }
+
+    if (!userToModify || !currentUser) return sendResponse(res, {
+      status: 400,
+      success: false,
+      message: "User not found",
+    });
+
+    const isFollowing = currentUser.following.includes(id);
+
+    if (isFollowing) {
+      // Unfollow user
+      await User.findByIdAndUpdate(id, { $pull: { followers: req.user._id } });
+      await User.findByIdAndUpdate(req.user._id, { $pull: { following: id } });
+      res.status(200).json({
+        success: true,
+        status: 200,
+        message: "User has been unfollowed successfully",
+      });
+    } else {
+      // Follow user
+      await User.findByIdAndUpdate(id, { $push: { followers: req.user._id } });
+      await User.findByIdAndUpdate(req.user._id, { $push: { following: id } });
+      res.status(200).json({
+        success: true,
+        status: 200,
+        message: "User has been followed successfully",
+      });
+    }
+  } catch (err) {
+    console.log("Error in followUnFollowUser: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User followUnFollowUser failed",
       error: err.message,
     });
   }
@@ -283,9 +407,12 @@ const deleteUser = async (req, res) => {
 
 
 export {
+  getUserProfile,
+  getSuggestedUsers,
   signupUser,
   loginUser,
   logoutUser,
+  followUnFollowUser,
   updateUser,
   freezeAccount,
   deleteUser,
