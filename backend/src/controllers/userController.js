@@ -104,7 +104,29 @@ const loginUser = async (req, res) => {
   }
 };
 
+// Log out (POST /logout)
+const logoutUser = (req, res) => {
+  try {
+    res.cookie("jwt", "", { maxAge: 1 });
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "User logged out successfully",
+    });
+  } catch (err) {
+    console.log("Error in logoutUser: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User logout failed",
+      error: err.message,
+    });
+  }
+};
+
 export {
   signupUser,
   loginUser,
+  logoutUser,
 }
