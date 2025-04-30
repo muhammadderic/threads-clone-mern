@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import generateTokenAndSetCookie from "../helpers/generateTokenAndSetCookie.js";
 import { sendResponse } from "../utils/sendResponse.js";
 
 // Create a user (sign up) (POST /signup)
@@ -31,6 +32,9 @@ const signupUser = async (req, res) => {
     await newUser.save();
 
     if (newUser) {
+      // Generate auth token and set it as a cookie
+      generateTokenAndSetCookie(newUser._id, res);
+
       return sendResponse(res, {
         status: 201,
         success: true,
@@ -60,3 +64,47 @@ const signupUser = async (req, res) => {
     });
   }
 };
+
+// Log in (POST /login)
+const loginUser = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await User.findOne({ username });
+    const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
+    if (!user || !isPasswordCorrect) return sendResponse(res, {
+      status: 400,
+      success: false,
+      message: "Invalid username or password",
+    });
+
+    generateTokenAndSetCookie(user._id, res);
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "User login successfully",
+      data: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        bio: user.bio,
+        profilePic: user.profilePic,
+      }
+    });
+  } catch (err) {
+    console.log("Error in loginUser: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User login failed",
+      error: err.message,
+    });
+  }
+};
+
+export {
+  signupUser,
+  loginUser,
+}
