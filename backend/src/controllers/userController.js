@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import generateTokenAndSetCookie from "../helpers/generateTokenAndSetCookie.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { uploadImage } from "../utils/uploadImage.js";
+import { freezeToggleAccount } from "../helpers/userHelpers.js";
 
 // Create a user (sign up) (POST /signup)
 const signupUser = async (req, res) => {
@@ -78,6 +79,9 @@ const loginUser = async (req, res) => {
       success: false,
       message: "Invalid username or password",
     });
+
+    // Unfreeze the user account if it was frozen
+    await freezeToggleAccount(user);
 
     generateTokenAndSetCookie(user._id, res);
 
@@ -192,10 +196,97 @@ const updateUser = async (req, res) => {
   }
 };
 
+// Freeze user account (PUT /freeze)
+const freezeAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return sendResponse(res, {
+        status: 400,
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const result = await freezeToggleAccount(user);
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: `User account ${result.status ? "frozen" : "unfrozen"} successfully`,
+      data: { isFrozen: result.status }
+    });
+  } catch (err) {
+    console.log("Error in freezeAccount: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User account frozen failed",
+      error: err.message,
+    });
+  }
+};
+
+// Delete user by ID (DELETE /:id)
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { confirmText } = req.body;
+    const userId = req.user._id;
+
+    // Check if the requester is deleting their own account
+    if (id !== userId.toString()) {
+      return sendResponse({
+        status: 403,
+        success: false,
+        message: "Forbidden: You are not allowed to delete another user",
+        error: "Access denied due to user mismatch",
+      })
+    }
+
+    // Validate confirmation text
+    const expectedConfirmation = "i agree to delete my account";
+    if (confirmText?.toLowerCase() !== expectedConfirmation) {
+      return sendResponse({
+        success: false,
+        status: 400,
+        message: "Invalid confirmation text. You must type: 'I agree to delete my account'",
+        error: "Confirmation text mismatch",
+      })
+    }
+
+    // Now delete the user
+    const user = await User.findByIdAndDelete(id);
+    if (!user) {
+      return sendResponse(res, {
+        status: 400,
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (err) {
+    console.log("Error in deleteUser: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "User deleted failed",
+      error: err.message,
+    });
+  }
+};
+
 
 export {
   signupUser,
   loginUser,
   logoutUser,
   updateUser,
+  freezeAccount,
+  deleteUser,
 }
