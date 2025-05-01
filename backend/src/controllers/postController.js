@@ -232,6 +232,100 @@ const updatePost = async (req, res) => {
   }
 };
 
+// Like and unlike a post (toggle) (PUT /like/:id)
+const likeUnlikePost = async (req, res) => {
+  try {
+    const { id: postId } = req.params;
+    const userId = req.user._id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return sendResponse(res, {
+        status: 404,
+        success: false,
+        message: "Post not found.",
+        error: `No post found with ID: ${postId}`,
+      });
+    }
+
+    const userLikedPost = post.likes.includes(userId);
+
+    if (userLikedPost) {
+      await Post.updateOne({ _id: postId }, { $pull: { likes: userId } });
+      return sendResponse(res, {
+        status: 200,
+        success: true,
+        message: "Post unliked successfully.",
+      });
+    } else {
+      post.likes.push(userId);
+      await post.save();
+      return sendResponse(res, {
+        status: 200,
+        success: true,
+        message: "Post liked successfully.",
+      });
+    }
+  } catch (err) {
+    console.error("Error liking/unliking post:", err);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Internal server error.",
+      error: err.message,
+    });
+  }
+};
+
+// Reply a post (PUT /reply/:id)
+const replyToPost = async (req, res) => {
+  try {
+    const { text } = req.body;
+    const postId = req.params.id;
+    const userId = req.user._id;
+    const userProfilePic = req.user.profilePic;
+    const username = req.user.username;
+
+    if (!text) {
+      return sendResponse(res, {
+        status: 400,
+        success: false,
+        message: "Validation error.",
+        error: "Text field is required."
+      });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return sendResponse(res, {
+        status: 404,
+        success: false,
+        message: "Post not found.",
+        error: `No post found with ID: ${postId}`
+      });
+    }
+
+    const reply = { userId, text, userProfilePic, username };
+    post.replies.push(reply);
+    await post.save();
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "Reply added successfully.",
+      data: reply
+    });
+  } catch (err) {
+    console.error("Error replying to post:", err);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Internal server error.",
+      error: err.message
+    });
+  }
+};
+
 // Delete a post by ID (DELETE /:id)
 const deletePost = async (req, res) => {
   try {
@@ -289,5 +383,7 @@ export {
   getUserPosts,
   createPost,
   updatePost,
+  likeUnlikePost,
+  replyToPost,
   deletePost,
 }
