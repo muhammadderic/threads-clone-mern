@@ -4,6 +4,43 @@ import User from "../models/User.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { uploadImage } from "../utils/uploadImage.js";
 
+// Get all posts by other users (feed) but not itself (GET /feed)
+const getFeedPosts = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return sendResponse(res, {
+        status: 404,
+        success: false,
+        message: "User not found.",
+        error: `No user found with ID: ${userId}`
+      });
+    }
+
+    const following = user.following;
+
+    const feedPosts = await Post.find({ postedBy: { $in: following } })
+      .sort({ createdAt: -1 });
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "Feed posts retrieved successfully.",
+      data: feedPosts
+    });
+  } catch (err) {
+    console.error("Error fetching feed posts:", err);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Internal server error.",
+      error: err.message
+    });
+  }
+};
+
 // Get a post by ID (GET /:id)
 const getPost = async (req, res) => {
   try {
@@ -20,6 +57,37 @@ const getPost = async (req, res) => {
       success: true,
       message: "Get post successfully",
       data: post
+    });
+  } catch (err) {
+    console.log("Error in getPost: ", err.message);
+    return sendResponse(res, {
+      status: 500,
+      success: false,
+      message: "Get post failed",
+      error: err.message,
+    });
+  }
+};
+
+// Get all user posts (GET /user/:username)
+const getUserPosts = async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) return sendResponse(res, {
+      status: 404,
+      success: false,
+      message: "User not found",
+    });
+
+    const posts = await Post.find({ postedBy: user._id }).sort({ createdAt: -1 });
+
+    return sendResponse(res, {
+      status: 200,
+      success: true,
+      message: "Get user posts successfully",
+      data: posts
     });
   } catch (err) {
     console.log("Error in getPost: ", err.message);
@@ -216,7 +284,9 @@ const deletePost = async (req, res) => {
 };
 
 export {
+  getFeedPosts,
   getPost,
+  getUserPosts,
   createPost,
   updatePost,
   deletePost,
