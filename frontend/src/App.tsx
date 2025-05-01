@@ -1,6 +1,21 @@
+import { Box, Container } from "@chakra-ui/react"
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import AuthPage from "./pages/AuthPage";
+
 function App() {
+  const { pathname } = useLocation();
+  const user = false;
+
   return (
-    <h1>Hello Deric</h1>
+    <Box position={"relative"} w='full'>
+      <Container maxW={pathname === "/" ? { base: "620px", md: "900px" } : "620px"}>
+        <Routes>
+          <Route path='/' element={user ? <HomePage /> : <Navigate to='/auth' />} />
+          <Route path='/auth' element={!user ? <AuthPage /> : <Navigate to='/' />} />
+        </Routes>
+      </Container>
+    </Box>
   )
 }
 
