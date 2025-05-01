@@ -2,10 +2,12 @@ import { Box, Container } from "@chakra-ui/react"
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
+import { useAtomValue } from "jotai";
+import { userAtom } from "./atoms/userAtom";
 
 function App() {
   const { pathname } = useLocation();
-  const user = false;
+  const user = useAtomValue(userAtom);
 
   return (
     <Box position={"relative"} w='full'>
