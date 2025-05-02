@@ -1,6 +1,6 @@
 import { authScreenAtom } from "@/atoms/authAtom";
-import SignupCard from "@/components/LoginCard";
 import LoginCard from "@/components/LoginCard";
+import SignupCard from "@/components/SignupCard";
 import { useAtomValue } from "jotai";
 
 const AuthPage = () => {
