@@ -4,6 +4,7 @@ import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
 import { useAtomValue } from "jotai";
 import { userAtom } from "./atoms/userAtom";
+import { Toaster } from "./components/ui/toaster";
 
 function App() {
   const { pathname } = useLocation();
@@ -16,6 +17,8 @@ function App() {
           <Route path='/' element={user ? <HomePage /> : <Navigate to='/auth' />} />
           <Route path='/auth' element={!user ? <AuthPage /> : <Navigate to='/' />} />
         </Routes>
+
+        <Toaster />
       </Container>
     </Box>
   )

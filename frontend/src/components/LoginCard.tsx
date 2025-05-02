@@ -12,18 +12,70 @@ import {
 } from "@chakra-ui/react";
 import { useSetAtom } from "jotai/react";
 import { useState } from "react";
+import { toaster } from "./ui/toaster";
+import { userAtom } from "@/atoms/userAtom";
 
 const LoginCard = () => {
   const setAuthScreen = useSetAtom(authScreenAtom);
+  const setUser = useSetAtom(userAtom);
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
     username: "",
     password: "",
   });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoading(true);
-    setLoading(false);
+    try {
+      if (!inputs.username || !inputs.password) {
+        toaster.create({
+          title: "Missing fields",
+          description: "Please enter both username and password.",
+          type: "warning",
+          duration: 3000,
+        });
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch("/api/v1/users/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(inputs),
+      });
+      const data = await res.json();
+      if (!data.success || !data.data) {
+        toaster.create({
+          title: "Login Failed",
+          description: data?.error?.message || "Invalid username or password.",
+          type: "error",
+          duration: 5000,
+        });
+        return;
+      }
+
+      // Extract only safe user data
+      const { _id, name, email, username, bio, profilePic } = data.data;
+      setUser({ _id, name, email, username, bio, profilePic });
+
+      toaster.create({
+        title: "Welcome!",
+        description: "Your login successfully",
+        type: "success",
+        duration: 5000,
+      });
+    } catch (error: any) {
+      toaster.create({
+        title: "Login Failed",
+        description: error.message || "An unexpected error occurred.",
+        type: "error",
+        duration: 5000,
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
