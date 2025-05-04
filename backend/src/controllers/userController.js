@@ -10,26 +10,33 @@ const getUserProfile = async (req, res) => {
   const { query } = req.params;
 
   try {
-    const user = await User.findOne({ username: query }).select("-password -updatedAt");
+    // Check if the query is a valid MongoDB ObjectId
+    const isMongoId = query.match(/^[0-9a-fA-F]{24}$/);
 
-    if (!user) return sendResponse(res, {
-      status: 404,
-      success: false,
-      message: "User not found",
-    });
+    const user = isMongoId
+      ? await User.findById(query).select("-password -updatedAt")
+      : await User.findOne({ username: query }).select("-password -updatedAt");
+
+    if (!user) {
+      return sendResponse(res, {
+        status: 404,
+        success: false,
+        message: "User not found",
+      });
+    }
 
     return sendResponse(res, {
-      status: 201,
+      status: 200,
       success: true,
-      message: "Get user successfully",
+      message: "User profile retrieved successfully",
       data: user,
     });
   } catch (err) {
-    console.log("Error in getUserProfile: ", err.message);
+    console.error("Error in getUserProfile:", err.message);
     return sendResponse(res, {
       status: 500,
       success: false,
-      message: "Get user profile failed",
+      message: "Failed to retrieve user profile",
       error: err.message,
     });
   }

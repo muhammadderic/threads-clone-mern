@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import { sendResponse } from "../utils/sendResponse.js";
 import { uploadImage } from "../utils/uploadImage.js";
 
-// Get all posts by other users (feed) but not itself (GET /feed)
+// Get all posts by other users (feed) and own posts
 const getFeedPosts = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -15,20 +15,40 @@ const getFeedPosts = async (req, res) => {
         status: 404,
         success: false,
         message: "User not found.",
-        error: `No user found with ID: ${userId}`
+        error: `No user found with ID: ${userId}`,
       });
     }
 
-    const following = user.following;
+    // Combine following users with current user
+    const feedUserIds = [...user.following, user._id];
 
-    const feedPosts = await Post.find({ postedBy: { $in: following } })
-      .sort({ createdAt: -1 });
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Fetch posts and count in parallel
+    const [feedPosts, total] = await Promise.all([
+      Post.find({ postedBy: { $in: feedUserIds } })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.countDocuments({ postedBy: { $in: feedUserIds } }),
+    ]);
 
     return sendResponse(res, {
       status: 200,
       success: true,
       message: "Feed posts retrieved successfully.",
-      data: feedPosts
+      data: {
+        posts: feedPosts,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
     });
   } catch (err) {
     console.error("Error fetching feed posts:", err);
@@ -36,7 +56,7 @@ const getFeedPosts = async (req, res) => {
       status: 500,
       success: false,
       message: "Internal server error.",
-      error: err.message
+      error: err.message,
     });
   }
 };
