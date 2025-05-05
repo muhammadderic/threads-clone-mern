@@ -9,13 +9,13 @@ import { useParams } from "react-router-dom";
 
 const UserPage = () => {
   const { username } = useParams();
-  const { user, loading: userLoading } = useGetUserProfile();
+  const { user, loading: userLoading, error } = useGetUserProfile(username);
   const [posts, setPosts] = useAtom(postsAtom);
   const [postsLoading, setPostsLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserPosts = async () => {
-      if (!user || !username) return;
+      if (!username) return;
 
       setPostsLoading(true);
       try {
@@ -23,12 +23,11 @@ const UserPage = () => {
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.message || "Failed to fetch posts");
-
-        setPosts(data.data);
+        setPosts(data.data || []);
       } catch (error) {
         toaster.create({
           title: "Error",
-          description: "Failed to load user profile. Please check your connection.",
+          description: "Error",
           type: "error",
           duration: 3000,
         });
@@ -38,8 +37,11 @@ const UserPage = () => {
       }
     };
 
-    fetchUserPosts();
-  }, [username, user, setPosts]);
+    // Only fetch posts if we have a valid username
+    if (username) {
+      fetchUserPosts();
+    }
+  }, [username, setPosts]);
 
   // Loading state for user data
   if (userLoading) {
@@ -47,6 +49,14 @@ const UserPage = () => {
       <Flex justifyContent="center" my={12}>
         <Spinner size="xl" />
       </Flex>
+    );
+  }
+
+  if (error) {
+    return (
+      <Text textAlign="center" fontSize="xl" mt={10}>
+        {error.message}
+      </Text>
     );
   }
 

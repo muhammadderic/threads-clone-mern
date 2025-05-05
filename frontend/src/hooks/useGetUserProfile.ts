@@ -1,7 +1,6 @@
 import { toaster } from "@/components/ui/toaster";
 import { User } from "@/types/types";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
 
 type UserProfileResult = {
   user: User | null;
@@ -9,47 +8,59 @@ type UserProfileResult = {
   error?: Error | null;
 }
 
-const useGetUserProfile = (): UserProfileResult => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { username } = useParams();
+const useGetUserProfile = (username?: string): UserProfileResult => {
+  const [state, setState] = useState<UserProfileResult>({
+    user: null,
+    loading: true,
+    error: null
+  });
 
   useEffect(() => {
+    if (!username) {
+      setState({ user: null, loading: false, error: null });
+      return;
+    }
+
     const getUser = async () => {
       try {
+        setState(prev => ({ ...prev, loading: true }));
+
         const res = await fetch(`/api/v1/users/profile/${username}`);
         const data = await res.json();
+
         if (!data.success) {
-          toaster.create({
-            title: "User Not Found",
-            description: "We couldn't find the profile for this user.",
-            type: "error",
-            duration: 3000,
-          });
-          return;
+          throw new Error(data.message || "User not found");
         }
 
         if (data.data.isFrozen) {
-          setUser(null);
-          return;
+          throw new Error("Account is frozen");
         }
-        setUser(data.data);
+
+        setState({
+          user: data.data,
+          loading: false,
+          error: null
+        });
       } catch (error) {
+        setState({
+          user: null,
+          loading: false,
+          error: error as Error
+        });
+
         toaster.create({
-          title: "Network Error",
-          description: "Failed to load user profile. Please check your connection.",
+          title: "Error",
+          description: "Error",
           type: "error",
           duration: 3000,
         });
-      } finally {
-        setLoading(false);
       }
     };
 
     getUser();
   }, [username]);
 
-  return { user, loading };
+  return state;
 };
 
 export default useGetUserProfile;
