@@ -37,8 +37,7 @@ const Header = () => {
 
       {user && (
         <Flex alignItems={"center"} gap={4}>
-          {/* TODO: to={`/${user.username}`} */}
-          <Link to={`#`}>
+          <Link to={`/${user.username}`}>
             <RxAvatar size={24} />
           </Link>
 

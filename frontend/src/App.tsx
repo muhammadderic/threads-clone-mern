@@ -7,6 +7,7 @@ import { userAtom } from "./atoms/userAtom";
 import { Toaster } from "./components/ui/toaster";
 import Header from "./components/Header";
 import UserPage from "./pages/UserPage";
+import UpdateProfilePage from "./pages/UpdateProfilePage";
 
 function App() {
   const { pathname } = useLocation();
@@ -20,6 +21,8 @@ function App() {
         <Routes>
           <Route path='/' element={user ? <HomePage /> : <Navigate to='/auth' />} />
           <Route path='/auth' element={!user ? <AuthPage /> : <Navigate to='/' />} />
+          <Route path='/update' element={user ? <UpdateProfilePage /> : <Navigate to='/auth' />} />
+
           <Route
             path='/:username'
             element={
